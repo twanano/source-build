@@ -57,7 +57,7 @@
       <Uri>https://github.com/microsoft/msbuild</Uri>
       <Sha>d31fdbf016616835b237d2846f3f1535560bb2d5</Sha>
     </Dependency>
-    <Dependency Name="NuGet.Build.Tasks" Version="5.1.0-rtm.5921" CoherentParentDependency="Microsoft.Dotnet.Toolset.Internal">
+    <Dependency Name="NuGet.Build.Tasks" Version="5.1.0-rtm.5921">
       <Uri>https://github.com/NuGet/NuGet.Client</Uri>
       <Sha>27af96bdb7ba8d6d7ea9ad53fc76cd1d1aa80703</Sha>
       <RepoName>nuget-client</RepoName>
