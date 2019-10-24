@@ -6,7 +6,7 @@
     <BuildCommandArgs>--pack --ci</BuildCommandArgs>
     <BuildCommandArgs Condition="'$(TargetOS)' == 'Linux'">$(BuildCommandArgs) /p:Rid=$(TargetRid)</BuildCommandArgs>
     <BuildCommandArgs>$(BuildCommandArgs) -c $(Configuration)</BuildCommandArgs>
-    <BuildCommandArgs>$(BuildCommandArgs) /p:DOTNET_INSTALL_DIR=$(DotNet3CliToolDir)</BuildCommandArgs>
+    <BuildCommandArgs>$(BuildCommandArgs) /p:DOTNET_INSTALL_DIR=$(DotNetCliToolDir)</BuildCommandArgs>
 
     <!-- Consume the source-built Core-Setup. This line must be removed to source-build CLI without source-building Core-Setup first. -->
     <BuildCommandArgs>$(BuildCommandArgs) /p:CoreSetupBlobRootUrl=file:%2F%2F$(LocalBlobStorageRoot)</BuildCommandArgs>
@@ -51,17 +51,11 @@
     <!-- Pass multiple restore sources as environment: avoid the shell seeing ';' in an Exec. -->
     <EnvironmentVariables Include="ExternalRestoreSources=$(EnvironmentExternalRestoreSources)" />
 
-    <!-- Produce stable versions for RTM only.  When https://github.com/dotnet/source-build/issues/550
-                  is fixed we will be able to determine this automatically.  -->
-    <EnvironmentVariables Include="DropSuffix=true"
-                          Condition="'$(UseStableVersions)' == 'true'" />
-
     <EnvironmentVariables Include="CLIBUILD_SKIP_TESTS=true" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- placeholder - the real dependency here is on AspNetCore-Tooling but we don't build that yet -->
-    <RepositoryReference Include="aspnet-extensions" />
+    <RepositoryReference Include="aspnetcore-tooling" />
     <RepositoryReference Include="cli" />
     <RepositoryReference Include="fsharp" />
     <RepositoryReference Include="netcorecli-fsc" />

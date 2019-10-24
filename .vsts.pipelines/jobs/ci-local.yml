@@ -23,7 +23,7 @@ jobs:
       /p:FailOnPrebuiltBaselineError=$(failOnPrebuiltBaselineError)
       /p:ProdConBlobFeedUrlPrefix=$(prodConBlobFeedUrlPrefix)
     args.smokeTest: >
-      /t:RunSmokeTest
+      --run-smoke-test
       /p:Configuration=$(sb.configuration)
       /p:ProdConBlobFeedUrlPrefix=$(prodConBlobFeedUrlPrefix)
     # Prefix to distinguish artifacts from different legs.
@@ -37,6 +37,8 @@ jobs:
   steps:
   - checkout: self
     clean: true
+
+  - template: ../steps/cleanup-unneeded-files.yml
 
   # If the machine is dirty, submodule URLs may be from a different branch. Sync to prevent that.
   - script: git submodule sync
@@ -79,7 +81,7 @@ jobs:
 
   # Gather artifacts. Uses git bash on Windows.
   - bash: |
-      set -x
+      set -ex
       copyWithParents="cp {} --parents"
       if command -v rsync; then
         # On Mac, "--parents" isn't supported, but we can use rsync.

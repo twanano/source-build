@@ -5,27 +5,25 @@
     <GeneratingStaticPropertiesFile>true</GeneratingStaticPropertiesFile>
   </PropertyGroup>
   <Import Project="..\dir.props" />
-  <Import Project="$(ToolsDir)Packaging.targets" />
-  <Import Project="$(ToolsDir)IL.targets" />
   <Import Project="$(OfflineAllRepoPropsFile)" Condition="Exists('$(OfflineAllRepoPropsFile)')" />
 
   <UsingTask AssemblyFile="$(SourceBuildTasksAssembly)" TaskName="GetHostInformation" />
   <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="WriteSourceRepoProperties" />
   <UsingTask AssemblyFile="$(LeakDetectionTasksAssembly)" TaskName="MarkAndCatalogPackages" />
-  <UsingTask AssemblyFile="$(BuildToolsTaskDir)Microsoft.DotNet.Build.Tasks.dll" TaskName="ZipFileExtractToDirectory" />
+  <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="NuGetPack" />
+  <UsingTask AssemblyFile="$(XPlatSourceBuildTasksAssembly)" TaskName="ZipFileExtractToDirectory" />
   
 
   <PropertyGroup>
     <BuildCompetedSuccessSemaphore>$(BaseIntermediatePath)/init-build-proj.complete</BuildCompetedSuccessSemaphore>
     <SourceBuildMSBuildSdkResolverPath>$(DotNetSdkResolversDir)SourceBuild.MSBuildSdkResolver\SourceBuild.MSBuildSdkResolver.dll</SourceBuildMSBuildSdkResolverPath>
-    <SourceBuildMSBuildSdk3ResolverPath>$(DotNetSdk3ResolversDir)SourceBuild.MSBuildSdkResolver\SourceBuild.MSBuildSdkResolver.dll</SourceBuildMSBuildSdk3ResolverPath>
   </PropertyGroup>
 
   <Target Name="Build"
     Inputs="$(TargetInfoProps)"
     Outputs="$(BuildCompetedSuccessSemaphore)"
     >
-    <CallTarget Targets="BuildXPlatTasks;BuildDarc;FetchSources;WriteSourceLinkMetadata;BuildTasks;ExtractToolPackage;InstallSourceBuildSdkResolver;WriteDynamicPropsToStaticPropsFiles;GenerateRootFs;ApplyPatches;PoisonPrebuiltPackages" />
+    <CallTarget Targets="UnpackTarballs;BuildXPlatTasks;AcquireDarc;FetchSources;WriteSourceLinkMetadata;BuildTasks;ExtractToolPackage;InstallSourceBuildSdkResolver;WriteDynamicPropsToStaticPropsFiles;GenerateRootFs;ApplyPatches;PoisonPrebuiltPackages" />
     <Touch Files="$(BuildCompetedSuccessSemaphore)" AlwaysCreate="true" />
   </Target>
 
@@ -36,8 +34,19 @@
   <Target Name="InstallSourceBuildSdkResolver">
     <Copy SourceFiles="$(XPlatSourceBuildTasksAssembly)"
           DestinationFiles="$(SourceBuildMSBuildSdkResolverPath)" />
-    <Copy SourceFiles="$(XPlatSourceBuildTasksAssembly)"
-          DestinationFiles="$(SourceBuildMSBuildSdk3ResolverPath)" />
+  </Target>
+
+  <Target Name="UnpackTarballs" 
+          Condition="'$(OfflineBuild)' == 'true'">
+    <MakeDir Directories="$(ReferencePackagesDir)" />
+    <Exec Command="tar -xzf $(ExternalTarballsDir)$(ReferencePackagesTarballName).*.tar.gz"
+          WorkingDirectory="$(ReferencePackagesDir)" />
+
+    <MakeDir Directories="$(PrebuiltSourceBuiltPackagesPath)" />
+    <Exec Command="tar -xzf $(ExternalTarballsDir)$(SourceBuiltArtifactsTarballName).*.tar.gz"
+          WorkingDirectory="$(PrebuiltSourceBuiltPackagesPath)" />
+
+    <Copy SourceFiles="$(PrebuiltSourceBuiltPackagesPath)PackageVersions.props" DestinationFiles="$(IntermediatePath)SourceBuiltPackageVersions.props" />
   </Target>
 
   <Target Name="BuildTasks">
@@ -78,7 +87,7 @@
     </ItemGroup>
 
     <MakeDir Directories="$(ReferencePackagesStagingDir)%(IlSource.RecursiveDir)" />
-    <Exec Command="$(IlasmToolPath) %(IlSource.Identity) -dll -quiet -nologo -output=$(ReferencePackagesStagingDir)%(IlSource.RecursiveDir)%(IlSource.Filename).dll" />
+    <Exec Command="$(IlasmPath) %(IlSource.Identity) -dll -quiet -nologo -output=$(ReferencePackagesStagingDir)%(IlSource.RecursiveDir)%(IlSource.Filename).dll" />
 
     <!-- Temporary workaround to copy dlls that can't be round-tripped 
          They just get copied from the source to the package staging area
@@ -144,13 +153,13 @@
     <MarkAndCatalogPackages PackagesToMark="@(PrebuiltSourceBuiltPackages)" CatalogOutputFilePath="$(SourceBuiltPoisonReportDataFile)" MarkerFileName="$(SourceBuiltPoisonMarkerFile)" />
   </Target>
 
-  <Target Name="BuildDarc" Condition="'$(OfflineBuild)' != 'true'">
+  <Target Name="AcquireDarc" Condition="'$(OfflineBuild)' != 'true'">
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Building Darc." />
-    <Exec Command="$(DotNetCliToolDir)dotnet build -c Release $(MSBuildProjectDirectory)/arcade-services/src/Microsoft.DotNet.Darc/src/Darc/Microsoft.DotNet.Darc.csproj" />
+    <Exec Command="$(ProjectDir)eng/common/darc-init.sh --darcversion $(DarcVersion) --toolpath $(DarcInstallDir)" />
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Done building Darc." />
   </Target>
 
-  <Target Name="FetchSources" Condition="'$(OfflineBuild)' != 'true'" DependsOnTargets="BuildDarc">
+  <Target Name="FetchSources" Condition="'$(OfflineBuild)' != 'true'" DependsOnTargets="AcquireDarc">
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Getting source code for repos in Version.Details.xml." />
     <PropertyGroup>
       <DarcCloneArguments>clone</DarcCloneArguments>
@@ -163,6 +172,7 @@
       <IgnoredRepos>$(IgnoredRepos);https://devdiv.visualstudio.com/DevDiv/_git/DotNet-Trusted</IgnoredRepos>
       <IgnoredRepos>$(IgnoredRepos);https://dnceng@dev.azure.com/dnceng/internal/_git/dotnet-optimization</IgnoredRepos>
       <IgnoredRepos>$(IgnoredRepos);https://dev.azure.com/dnceng/internal/_git/dotnet-core-setup</IgnoredRepos>
+      <IgnoredRepos>$(IgnoredRepos);https://github.com/dotnet/source-build-reference-packages</IgnoredRepos>
       <DarcCloneArguments>$(DarcCloneArguments) --ignore-repos "$(IgnoredRepos)"</DarcCloneArguments>
       <!-- required so Darc doesn't throw an error for missing auth -->
       <DarcCloneArguments>$(DarcCloneArguments) --azdev-pat bogus</DarcCloneArguments>
@@ -172,12 +182,12 @@
       <DarcCloneArguments>$(DarcCloneArguments) --debug</DarcCloneArguments>
       <DarcCloneCommand>$(DotNetCliToolDir)dotnet $(DarcDll) $(DarcCloneArguments)</DarcCloneCommand>
     </PropertyGroup>
-    <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Running Darc command: '$(DarcCloneCommand)'" />
-    <Exec Command="$(DarcCloneCommand)" WorkingDirectory="$(ProjectDir)" />
+    <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Running Darc command: '$(DarcCloneCommand)' from working dir $(ProjectDir)" />
+    <Exec Command="$(DarcCloneCommand)" WorkingDirectory="$(ProjectDir)" EnvironmentVariables="LD_LIBRARY_PATH=$(DotNetCliToolDir)/tools/.store/microsoft.dotnet.darc/$(DarcVersion)/microsoft.dotnet.darc/$(DarcVersion)/tools/netcoreapp2.1/any/runtimes/rhel-x64/native/" />
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Done getting source code for repos in Version.Details.xml." />
   </Target>
 
-  <Target Name="WriteSourceLinkMetadata" Condition="'$(OfflineBuild)' != 'true'" DependsOnTargets="BuildDarc;FetchSources">
+  <Target Name="WriteSourceLinkMetadata" Condition="'$(OfflineBuild)' != 'true'" DependsOnTargets="AcquireDarc;FetchSources">
     <Message Importance="High" Text="[$([System.DateTime]::Now.ToString('HH:mm:ss.ff'))] Writing out SourceLink metadata." />
     <WriteSourceRepoProperties
        VersionDetailsFile="$(ProjectDir)eng/Version.Details.xml"

@@ -4,6 +4,9 @@ syntax: glob
 
 # Tool Runtime Dir
 /[Tt]ools/
+.dotnet/
+artifacts
+.packages/
 
 # User-specific files
 *.suo
@@ -272,6 +275,7 @@ config.ps1
 ### source-build ###
 prebuilt/
 msbuild.binlog
+testing-smoke/
 
 # Exists temporarily during build. Interferes with VersionTools'
 # UpdateDependenciesAndSubmitPullRequest: if no upgrades are performed, the

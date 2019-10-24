@@ -8,6 +8,7 @@
     <BuildCommandArgs>$(BuildCommandArgs) $(FlagParameterPrefix)pack</BuildCommandArgs>
     <BuildCommandArgs>$(BuildCommandArgs) $(FlagParameterPrefix)configuration $(Configuration)</BuildCommandArgs>
     <BuildCommandArgs>$(BuildCommandArgs) $(FlagParameterPrefix)nodereuse $(ArcadeFalseBoolBuildArg)</BuildCommandArgs>
+    <BuildCommandArgs>$(BuildCommandArgs) $(FlagParameterPrefix)warnAsError $(ArcadeFalseBoolBuildArg)</BuildCommandArgs>
 
     <LogVerbosityOptOut>true</LogVerbosityOptOut>
     <BuildCommandArgs>$(BuildCommandArgs) -v $(LogVerbosity)</BuildCommandArgs>
@@ -21,7 +22,7 @@
 
     <GlobalJsonFile>$(ProjectDirectory)global.json</GlobalJsonFile>
 
-    <DependencyVersionInputRepoApiImplemented>false</DependencyVersionInputRepoApiImplemented>
+    <DependencyVersionInputRepoApiImplemented>true</DependencyVersionInputRepoApiImplemented>
     <OutputPlacementRepoApiImplemented>false</OutputPlacementRepoApiImplemented>
 
     <OrchestratedManifestBuildName>N/A</OrchestratedManifestBuildName>
@@ -29,6 +30,7 @@
 
     <!-- we need to use a prebuilt Arcade to build Arcade -->
     <UseBootstrapArcade>true</UseBootstrapArcade>
+    <IsToolingProject>true</IsToolingProject>
   </PropertyGroup>
 
   <ItemGroup>

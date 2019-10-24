@@ -86,13 +86,21 @@ namespace Microsoft.DotNet.Build.Tasks
                 foreach (PackageIdentity packageIdentity in latestPackages)
                 {
                     string propertyName = GetPropertyName(packageIdentity.Id);
+                    sw.WriteLine($"    <{propertyName}>{packageIdentity.Version}</{propertyName}>");
 
+                    propertyName = GetAlternatePropertyName(packageIdentity.Id);
                     sw.WriteLine($"    <{propertyName}>{packageIdentity.Version}</{propertyName}>");
                 }
                 foreach (var extraProp in ExtraProperties ?? Enumerable.Empty<ITaskItem>())
                 {
                     string propertyName = extraProp.GetMetadata("Identity");
-                    sw.WriteLine($"    <{propertyName}>{extraProp.GetMetadata("Version")}</{propertyName}>");
+                    bool doNotOverwrite = false;
+                    string overwriteCondition = string.Empty;
+                    if (bool.TryParse(extraProp.GetMetadata("DoNotOverwrite"), out doNotOverwrite) && doNotOverwrite)
+                    {
+                        overwriteCondition = $" Condition=\"'$({propertyName})' == ''\"";
+                    }
+                    sw.WriteLine($"    <{propertyName}{overwriteCondition}>{extraProp.GetMetadata("Version")}</{propertyName}>");
                 }
                 foreach (var additionalAsset in additionalAssets)
                 {
@@ -119,6 +127,16 @@ namespace Microsoft.DotNet.Build.Tasks
                     ?? string.Empty);
 
             return $"{formattedId}PackageVersion";
+        }
+
+        public static string GetAlternatePropertyName(string id)
+        {
+            string formattedId = InvalidElementNameCharRegex.Replace(
+                id,
+                match => match.Groups?["FirstPartChar"].Value.ToUpperInvariant()
+                    ?? string.Empty);
+
+            return $"{formattedId}Version";
         }
     }
 }

@@ -69,6 +69,7 @@
 
         <!-- Tier 6 -->
 
+        <RepositoryReference Include="aspnetcore" />
         <RepositoryReference Include="cli" />
 
         <!-- Tier 7 -->
@@ -78,6 +79,11 @@
         <!-- Tier 8 -->
 
         <RepositoryReference Include="core-sdk" />
+
+        <!-- Package source-build artifacts -->
+
+        <RepositoryReference Include="package-source-build" />
+
       </ItemGroup>
     </Otherwise>
   </Choose>

@@ -10,24 +10,23 @@
     <PortableBuild Condition="'$(OS)' == 'Windows_NT'">true</PortableBuild>
     <PortableBuild Condition="'$(PortableBuild)' == ''">false</PortableBuild>
     <UseSystemLibraries Condition="'$(UseSystemLibraries)' == '' AND '$(PortableBuild)' != 'true'">true</UseSystemLibraries>
+    <UseStableVersions Condition="'$(UseStableVersions)' == ''">false</UseStableVersions>
   </PropertyGroup>
 
   <PropertyGroup>
     <ProjectDir>$(MSBuildThisFileDirectory)</ProjectDir>
     <TargetsDir>$(ProjectDir)targets/</TargetsDir>
     <KeysDir>$(ProjectDir)keys/</KeysDir>
-    <DotNetCliToolDir>$(ProjectDir)Tools/dotnetcli/</DotNetCliToolDir>
-    <!-- some repos, e.g. toolset, require a 3.0 preview SDK to build -->
-    <DotNet3CliToolDir>$(ProjectDir)Tools/dotnetcli3/</DotNet3CliToolDir>
-    <!-- different casing here matches BuildTools property -->
-    <Dotnet3ToolCommand>$(DotNet3CliToolDir)dotnet</Dotnet3ToolCommand>
+    <DotNetCliToolDir>$(ProjectDir).dotnet/</DotNetCliToolDir>
+    <DotnetToolCommand>$(DotNetCliToolDir)dotnet</DotnetToolCommand>
     <PatchesDir>$(ProjectDir)patches/</PatchesDir>
-    <PackagesDir>$(ProjectDir)packages/</PackagesDir>
+    <PackagesDir>$(ProjectDir)packages/restored/</PackagesDir>
     <ArcadeBootstrapPackageDir>$(PackagesDir)ArcadeBootstrapPackage/</ArcadeBootstrapPackageDir>
     <DotNetSdkDir>$(DotNetCliToolDir)sdk/$(SDK_VERSION)/</DotNetSdkDir>
-    <DotNetSdk3Dir>$(DotNet3CliToolDir)sdk/$(SDK3_VERSION)/</DotNetSdk3Dir>
     <DotNetSdkResolversDir>$(DotNetSdkDir)SdkResolvers/</DotNetSdkResolversDir>
-    <DotNetSdk3ResolversDir>$(DotNetSdk3Dir)SdkResolvers/</DotNetSdk3ResolversDir>
+    <!-- if we're not currently building,  Visual Studio will still set this -->
+    <SDK_VERSION Condition="'$(SDK_VERSION)' == ''">$(NETCoreSdkVersion)</SDK_VERSION>
+    <SdkReferenceDir>$(DotNetCliToolDir)sdk/$(SDK_VERSION)/</SdkReferenceDir>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -57,10 +56,11 @@
     <ClonedSubmoduleGitRootDirectory Condition="'$(ClonedSubmoduleGitRootDirectory)' == ''">$(ProjectDir).git/modules/src/</ClonedSubmoduleGitRootDirectory>
     <ToolsDir>$(ProjectDir)Tools/</ToolsDir>
     <ToolPackageExtractDir>$(ToolsDir)source-built/</ToolPackageExtractDir>
-    <IldasmPath>$(ToolsDir)ilasm/ildasm</IldasmPath>
     <ToolsLocalDir>$(ProjectDir)tools-local/</ToolsLocalDir>
     <TaskDirectory>$(ToolsLocalDir)tasks/</TaskDirectory>
-    <DarcDll>$(ToolsLocalDir)arcade-services/artifacts/bin/Microsoft.DotNet.Darc/Release/netcoreapp2.1/Microsoft.DotNet.Darc.dll</DarcDll>
+    <DarcInstallDir>$(DotNetCliToolDir)tools/</DarcInstallDir>
+    <DarcVersion>$([System.IO.File]::ReadAllText('$(ProjectDir)DarcVersion.txt').Trim())</DarcVersion>
+    <DarcDll>$(DotNetCliToolDir)tools/.store/microsoft.dotnet.darc/$(DarcVersion)/microsoft.dotnet.darc/$(DarcVersion)/tools/netcoreapp2.1/any/Microsoft.DotNet.Darc.dll</DarcDll>
     <TasksBinDir>$(TaskDirectory)Microsoft.DotNet.SourceBuild.Tasks/bin/Debug/netstandard2.0/</TasksBinDir>
     <SourceBuildTasksAssembly>$(TasksBinDir)Microsoft.DotNet.SourceBuild.Tasks.dll</SourceBuildTasksAssembly>
     <XPlatTasksBinDir>$(TaskDirectory)Microsoft.DotNet.SourceBuild.Tasks.XPlat/bin/Debug/netstandard2.0/</XPlatTasksBinDir>
@@ -78,17 +78,24 @@
     <SourceBuiltBlobFeedDir>$(IntermediatePath)blob-feed/</SourceBuiltBlobFeedDir>
     <SourceBuiltPackagesPath>$(SourceBuiltBlobFeedDir)packages/</SourceBuiltPackagesPath>
     <SourceBuiltAssetsDir>$(SourceBuiltBlobFeedDir)assets/</SourceBuiltAssetsDir>
-    <PrebuiltPackagesPath>$(ProjectDir)prebuilt/nuget-packages/</PrebuiltPackagesPath>
-    <PrebuiltSourceBuiltPackagesPath>$(ProjectDir)prebuilt/source-built/</PrebuiltSourceBuiltPackagesPath>
+    <PrebuiltPackagesPath>$(ProjectDir)packages/prebuilt/</PrebuiltPackagesPath>
+    <PrebuiltSourceBuiltPackagesPath>$(ProjectDir)packages/source-built/</PrebuiltSourceBuiltPackagesPath>
     <SourceBuiltTarBallPath>$(OutputPath)</SourceBuiltTarBallPath>
     <SourceBuiltToolsetDir>$(LocalBlobStorageRoot)Toolset/</SourceBuiltToolsetDir>
     <SourceBuiltRuntimeDir>$(LocalBlobStorageRoot)Runtime/</SourceBuiltRuntimeDir>
+    <SourceBuiltAspNetCoreRuntime>$(LocalBlobStorageRoot)aspnetcore/Runtime/</SourceBuiltAspNetCoreRuntime>
     <TargetInfoProps>$(IntermediatePath)TargetInfo.props</TargetInfoProps>
     <RestoreSourcePropsPath>$(IntermediatePath)RestoreSources.props</RestoreSourcePropsPath>
     <PackageVersionPropsPath>$(IntermediatePath)PackageVersions.props</PackageVersionPropsPath>
+    <GennedPackageVersionPropsPath Condition="'$(OfflineBuild)' == 'true'">$(IntermediatePath)GennedPackageVersions.props</GennedPackageVersionPropsPath>
+    <GennedPackageVersionPropsPath Condition="'$(OfflineBuild)' != 'true'">$(IntermediatePath)PackageVersions.props</GennedPackageVersionPropsPath>
     <LoggingDir>$(BaseOutputPath)logs/</LoggingDir>
     <MSBuildDebugPathTargetDir>$(BaseOutputPath)msbuild-debug/</MSBuildDebugPathTargetDir>
     <RoslynDebugPathTargetDir>$(BaseOutputPath)roslyn-debug/</RoslynDebugPathTargetDir>
+    <IlasmPath Condition="'$(OfflineBuild)' != 'true'">invalid: ILAsm is not expected to be needed in the online build</IlasmPath>
+    <IlasmPath Condition="'$(OfflineBuild)' == 'true'">$(PrebuiltSourceBuiltPackagesPath)coreclr-tools/ilasm</IlasmPath>
+    <IldasmPath Condition="'$(OfflineBuild)' != 'true'">$(ToolPackageExtractDir)coreclr-tools/ildasm</IldasmPath>
+    <IldasmPath Condition="'$(OfflineBuild)' == 'true'">invalid: ILDasm is not expected to be needed in the offline build</IldasmPath>
     <!-- Dir where git info is generated during online builds. -->
     <GitInfoOutputDir>$(BaseOutputPath)git-info/</GitInfoOutputDir>
     <!-- Dir where git info is placed inside the tarball. -->
@@ -111,16 +118,19 @@
     <OfflinePrebuiltBurndownDataFile>$(PackageReportDir)PrebuiltBurndownData-offline.csv</OfflinePrebuiltBurndownDataFile>
     <OnlinePrebuiltBurndownDataFile>$(PackageReportDir)PrebuiltBurndownData-online.csv</OnlinePrebuiltBurndownDataFile>
     <ReferencePackagesBaseDir>$(IntermediatePath)reference-packages/</ReferencePackagesBaseDir>
+    <ExternalTarballsDir>$(IntermediatePath)external-tarballs/</ExternalTarballsDir>
     <!--
-      Change ReferencePackagesBaseDir conditionally in offline build.
-      See corresponding change in build-source-tarball.sh to copy reference-packages
-      from source-build bin dir to tarball reference-packages dir.
+      Change ReferencePackagesBaseDir & ExternalTarballsDir conditionally in offline build.
+      See corresponding change in build-source-tarball.sh to copy reference-packages & external-tarballs
+      from source-build bin dir to tarball packages/reference dir & packages/archive.
     -->
-    <ReferencePackagesBaseDir Condition="'$(OfflineBuild)' == 'true'">$(ProjectDir)reference-packages/</ReferencePackagesBaseDir>
+    <ExternalTarballsDir Condition="'$(OfflineBuild)' == 'true'">$(ProjectDir)packages/archive/</ExternalTarballsDir>
+    <ReferencePackagesBaseDir Condition="'$(OfflineBuild)' == 'true'">$(ProjectDir)packages/reference/</ReferencePackagesBaseDir>
     <ReferencePackagesStagingDir>$(ReferencePackagesBaseDir)staging/</ReferencePackagesStagingDir>
     <ReferencePackagesSourceDir>$(ReferencePackagesBaseDir)source/</ReferencePackagesSourceDir>
     <ReferencePackagesDir>$(ReferencePackagesBaseDir)packages/</ReferencePackagesDir>
-    <ReferencePackagesTarballDir>$(ReferencePackagesBaseDir)tarball/</ReferencePackagesTarballDir>
+    <SourceBuiltArtifactsTarballName>Private.SourceBuilt.Artifacts</SourceBuiltArtifactsTarballName>
+    <SourceBuiltArtifactsTarballUrl>https://dotnetcli.blob.core.windows.net/source-built-artifacts/assets/</SourceBuiltArtifactsTarballUrl>
     <ReferencePackagesTarballName>Private.SourceBuild.ReferencePackages</ReferencePackagesTarballName>
     <ReferencePackagesTarballUrl>https://dotnetcli.blob.core.windows.net/source-build-reference-packages/assets/</ReferencePackagesTarballUrl>
     <ReferencePackagesToDeleteDir>$(ReferencePackagesBaseDir)packages-to-delete/</ReferencePackagesToDeleteDir>
@@ -129,6 +139,8 @@
     <OnlineBaselineDataFile>$(BaselineDataFile)online.xml</OnlineBaselineDataFile>
     <BaselineDataFile Condition="'$(OfflineBuild)' == 'true'">$(OfflineBaselineDataFile)</BaselineDataFile>
     <BaselineDataFile Condition="'$(OfflineBuild)' != 'true'">$(OnlineBaselineDataFile)</BaselineDataFile>
+    <!--Exclude tests that are failing for test enabled projects like - corefx -->
+    <TestExclusionsDir>$(ProjectDir)test/exclusions/</TestExclusionsDir>
   </PropertyGroup>
 
   <!-- Import Build tools common props file where repo-independent properties are found -->
@@ -141,14 +153,13 @@
 
   <Import Project="$(TargetInfoProps)" Condition="$(GeneratingStaticPropertiesFile) != 'true' AND Exists('$(TargetInfoProps)')" />
 
-  <Import Project="$(ProjectDir)dependencies.props" />
-
   <PropertyGroup>
     <!-- known-good (repos/known-good.proj) conditionally includes submodules based on the platform,
          so this will not always correspond to the same repos - see that file for details.
          We need an "empty" project after the last real project in order for prebuilt detection
          to work, so we always build known-good. -->
     <RootRepo>known-good</RootRepo>
+    <RootRepoTests>known-good-tests</RootRepoTests>
   </PropertyGroup>
 
   <ItemGroup>
@@ -165,11 +176,6 @@
     <CliInternalBuildVersion>30000001-1</CliInternalBuildVersion>
   </PropertyGroup>
 
-  <!-- With Arcade, this package version is stored in a property we need to override. -->
-  <ItemGroup>
-    <ExtraPackageVersionPropsPackageInfo Include="BuildToolsPackageVersion" Version="$(BuildToolsPackageVersion)" />
-  </ItemGroup>
-
   <ItemGroup>
     <ExtraPackageVersionPropsPackageInfo Include="DotnetCliInternalVersion" Version="3.0.100-$(CliInternalReleaseTag)-$(CliInternalBuildVersion)" />
   </ItemGroup>
@@ -177,10 +183,24 @@
   <Import Project="$(ProductionAllRepoPropsFile)" Condition="Exists('$(ProductionAllRepoPropsFile)')" />
   <Import Project="$(OfflineAllRepoPropsFile)" Condition="Exists('$(OfflineAllRepoPropsFile)')" />
 
-  <!-- Arcade uses this property to determine which version of SourceLink to pull in -->
+  <!-- Additional psuedo-versions that some repos depend on -->
   <ItemGroup>
+    <!-- Arcade uses this property to determine which version of SourceLink to pull in -->
     <ExtraPackageVersionPropsPackageInfo Condition="'$(OfflineBuild)' != 'true'" Include="MicrosoftSourceLinkVersion" Version="%24(MicrosoftSourceLinkCommonPackageVersion)" />
     <ExtraPackageVersionPropsPackageInfo Condition="'$(OfflineBuild)' == 'true'" Include="MicrosoftSourceLinkVersion" Version="$(sourcelinkOutputPackageVersion)" />
+    <!-- we don't produce the Windows version of this package but that's the one core-sdk keys off of for the ASP.NET version -->
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftAspNetCoreAppRuntimewinx64PackageVersion" Version="$(aspnetcoreOutputPackageVersion)" />
+    <!-- same thing here for CLI -->
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppRuntimewinx64Version" Version="$(coresetupOutputPackageVersion)" />
+    <!-- same thing here for toolset -->
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppRuntimewinx64PackageVersion" Version="$(coresetupOutputPackageVersion)" />
+    <!-- same thing here for core-sdk -->
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppRuntimePackageVersion" Version="%24(MicrosoftNETCoreAppVersion)" />
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppRuntimeVersion" Version="%24(MicrosoftNETCoreAppVersion)" />
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftNETCoreAppHostPackageVersion" Version="%24(MicrosoftNETCoreDotNetAppHostPackageVersion)" />
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftAspNetCoreAppRuntimePackageVersion" Version="%24(MicrosoftAspNetCoreAppRuntimeLinuxX64PackageVersion)" />
+    <!-- OSX needs the OSX version instead of Linux.  We don't have a lot of flexibility in how we output these properties so we're relying on the previous one being blank if the Linux version of the package is missing.  -->
+    <ExtraPackageVersionPropsPackageInfo Include="MicrosoftAspNetCoreAppRuntimePackageVersion" Version="%24(MicrosoftAspNetCoreAppRuntimeOsxX64PackageVersion)" DoNotOverwrite="true" />
   </ItemGroup>
 
 </Project>
